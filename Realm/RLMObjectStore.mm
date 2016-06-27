@@ -415,7 +415,8 @@ id RLMGetObject(RLMRealm *realm, NSString *objectClassName, id key) {
         @throw RLMException(@"%@ does not have a primary key", objectClassName);
     }
 
-    if (!objectSchema.table) {
+    TableRef table = objectSchema.table;
+    if (!table) {
         // read-only realms may be missing tables since we can't add any
         // missing ones on init
         return nil;
@@ -427,7 +428,7 @@ id RLMGetObject(RLMRealm *realm, NSString *objectClassName, id key) {
     if (primaryProperty.type == RLMPropertyTypeString) {
         NSString *str = RLMDynamicCast<NSString>(key);
         if (str || (!key && primaryProperty.optional)) {
-            row = objectSchema.table->find_first_string(primaryProperty.column, RLMStringDataWithNSString(str));
+            row = table->find_first_string(primaryProperty.column, RLMStringDataWithNSString(str));
         }
         else {
             @throw RLMException(@"Invalid value '%@' for primary key", key);
@@ -436,10 +437,10 @@ id RLMGetObject(RLMRealm *realm, NSString *objectClassName, id key) {
     else {
         NSNumber *number = RLMDynamicCast<NSNumber>(key);
         if (number) {
-            row = objectSchema.table->find_first_int(primaryProperty.column, number.longLongValue);
+            row = table->find_first_int(primaryProperty.column, number.longLongValue);
         }
         else if (!key && primaryProperty.optional) {
-            row = objectSchema.table->find_first_null(primaryProperty.column);
+            row = table->find_first_null(primaryProperty.column);
         }
         else {
             @throw RLMException(@"Invalid value '%@' for primary key", key);
@@ -454,16 +455,16 @@ id RLMGetObject(RLMRealm *realm, NSString *objectClassName, id key) {
 }
 
 RLMObjectBase *RLMCreateObjectAccessor(__unsafe_unretained RLMRealm *const realm,
-                                       __unsafe_unretained RLMObjectSchema *const objectSchema,
+                                       RLMObjectInfo const& info,
                                        NSUInteger index) {
-    return RLMCreateObjectAccessor(realm, objectSchema, (*objectSchema.table)[index]);
+    return RLMCreateObjectAccessor(realm, info, (*info.table())[index]);
 }
 
 // Create accessor and register with realm
 RLMObjectBase *RLMCreateObjectAccessor(__unsafe_unretained RLMRealm *const realm,
-                                       __unsafe_unretained RLMObjectSchema *const objectSchema,
+                                       RLMObjectInfo const& info,
                                        realm::RowExpr row) {
-    RLMObjectBase *accessor = [[objectSchema.accessorClass alloc] initWithRealm:realm schema:objectSchema];
+    RLMObjectBase *accessor = [[info.rlmObjectSchema.accessorClass alloc] initWithRealm:realm schema:&info];
     accessor->_row = row;
     RLMInitializeSwiftAccessorGenerics(accessor);
     return accessor;

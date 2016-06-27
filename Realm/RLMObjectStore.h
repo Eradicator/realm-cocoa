@@ -89,11 +89,11 @@ namespace realm {
     template<typename T> class BasicRowExpr;
     using RowExpr = BasicRowExpr<Table>;
 }
+struct RLMObjectInfo;
+
 // Create accessors
-RLMObjectBase *RLMCreateObjectAccessor(RLMRealm *realm,
-                                       RLMObjectSchema *objectSchema,
+RLMObjectBase *RLMCreateObjectAccessor(RLMRealm *realm, RLMObjectInfo const& info,
                                        NSUInteger index) NS_RETURNS_RETAINED;
-RLMObjectBase *RLMCreateObjectAccessor(RLMRealm *realm,
-                                       RLMObjectSchema *objectSchema,
+RLMObjectBase *RLMCreateObjectAccessor(RLMRealm *realm, RLMObjectInfo const& info,
                                        realm::RowExpr row) NS_RETURNS_RETAINED;
 #endif
