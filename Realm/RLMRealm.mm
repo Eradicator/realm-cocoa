@@ -705,6 +705,32 @@ REALM_NOINLINE void RLMRealmTranslateException(NSError **error) {
     }
 }
 
+- (void)dispatchAsync:(dispatch_queue_t)queue handingOver:(NSArray<RLMObject *> *)objectsToHandOver withBlock:(void(^)(RLMRealm *, NSArray<RLMObject *> *))block {
+    // TODO: Assert all objects in array are *actually* managed by Realm (also make sure they're being used on the correct thread)
+    std::vector<realm::Row> rowsToHandOver;
+    rowsToHandOver.reserve(objectsToHandOver.count);
+    NSMutableArray<RLMObjectSchema *> *schema = [NSMutableArray arrayWithCapacity:objectsToHandOver.count];
+    for (RLMObject *object in objectsToHandOver) {
+        rowsToHandOver.push_back(object->_row);
+        [schema addObject: [self.schema schemaForClassName:object.objectSchema.className]];
+    }
+    std::shared_ptr<Realm::HandoverPackage> package = _realm->package_for_handover(rowsToHandOver);
+
+    RLMRealmConfiguration *config = self.configuration;
+    dispatch_async(queue, ^{
+        @autoreleasepool {
+            RLMRealm *realm = [RLMRealm realmWithConfiguration:config error:nil]; // Ignoring error since Realm already open       // <-- Create Realm instance on new thread (is reusing the same config object safe?)
+            std::vector<std::unique_ptr<realm::Row>> acceptedRows = realm->_realm->accept_handover(*package);
+
+            NSMutableArray<RLMObject *> *acceptedObjects = [NSMutableArray arrayWithCapacity:schema.count];
+            for (NSUInteger i = 0; i < schema.count; i++) {
+                [acceptedObjects addObject: (RLMObject *)RLMCreateObjectAccessor(realm, schema[i], acceptedRows[i]->get_index())]; // <-- Create object from handed over rows + schema (is reusing the same schema object safe?)
+            }
+            block(realm, acceptedObjects);
+        }
+    });
+}
+
 - (RLMObject *)createObject:(NSString *)className withValue:(id)value {
     return (RLMObject *)RLMCreateObjectInRealmWithValue(self, className, value, false);
 }

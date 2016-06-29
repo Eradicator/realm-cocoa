@@ -1555,6 +1555,26 @@ class RealmTests: TestCase {
             XCTAssertFalse(realm == otherThreadRealm)
         }
     }
+
+    func testHandover() {
+        let realm = try! Realm()
+        let object = SwiftObject()
+        try! realm.write {
+            realm.add(object)
+        }
+
+        dispatchSync { queue in
+            realm.async(onQueue: queue, handingOver: [object]) { realm, objects in
+                let object = objects[0] as! SwiftObject // If we query here instead, it works! :(
+                try! realm.write {
+                    object.boolCol = true
+                }
+            }
+        }
+        XCTAssertEqual(false, object.boolCol) // Fails!! How did this change without refreshing?!
+        realm.refresh()
+        XCTAssertEqual(true, object.boolCol)
+    }
 }
 
 #endif

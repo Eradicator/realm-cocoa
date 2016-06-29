@@ -532,10 +532,10 @@ public class Object: RLMObjectBase {
 
     #if os(OSX)
     /// A helper property that returns the class name for an `Object` subclass.
-    public final override var className: String { return "" }
+    public final override var className: String { return super.className }
     #else
     /// A helper property that returns the class name for an `Object` subclass.
-    public final var className: String { return "" }
+    public final var className: String { return super.className }
     #endif
 
     /**
